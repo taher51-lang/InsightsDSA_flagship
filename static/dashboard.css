@@ -1,0 +1,84 @@
+/* Sidebar sizing */
+aside {
+    flex-shrink: 0; /* Prevents the sidebar from getting squashed */
+}
+
+@media (min-width: 992px) {
+    aside {
+        width: 110px; /* Precise width for your Desktop sidebar */
+    }
+    
+    .sidebar {
+        position: sticky;
+        top: 1rem;
+        /* Height minus the margins for a 'floating pill' look */
+        height: calc(100vh - 2rem); 
+    }
+}
+
+@media (max-width: 991px) {
+    aside {
+        padding: 10px 15px !important; 
+        height: auto !important;
+    }
+
+    /* Make the dark navbar much shorter */
+    /* .sidebar.navbar {
+        height: 60px !important;
+        margin-bottom: 0 !important;
+        padding: 0 15px !important;
+    } */
+
+    /* Keep the logo and hamburger on one line tightly */
+    .navbar-brand {
+        font-size: 1.5rem !important;
+        margin: 0 !important;
+    }
+    .sidebar.navbar {
+        min-height: 60px !important; /* Minimum slim look */
+        height: auto !important;      /* Allows expansion */
+        transition: all 0.3s ease;    /*Makes the drop-down smooth*/
+    }
+
+    /* Ensure the collapsible area can actually show */
+    .navbar-collapse.show {
+        padding: 20px 0;
+    }
+}
+
+/* Ensure main content takes the rest of the screen */
+main {
+    background-color: #f8f9fa;
+    min-width: 0; /* Prevents content from breaking the flex container */
+}
+.concept-scroll-box {
+    /* Adjust '450px' based on how much space your 'Hello Josh' banner takes */
+    height: calc(100vh - 358px); 
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px; /* Prevents scrollbar from touching the cards */
+}
+
+/* Professional thin scrollbar for a native macOS feel */
+.concept-scroll-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.concept-scroll-box::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.concept-scroll-box::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.concept-scroll-box::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+@media (min-lg-width: 992px) {
+    .custom-sidebar-width {
+        width: 100px; /* Adjust this number to your liking */
+        flex: 0 0 auto; /* Prevents it from growing to fill space */
+    }
+}
