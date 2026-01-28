@@ -140,5 +140,73 @@ def get_questions_api(concept_id):
     cur.close()
     con.close()
     return jsonify(questions)
+@app.route("/api/get_question_details/<int:q_id>")
+def get_question_details(q_id):
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    con = getDBConnection()
+    # Use RealDictCursor to access columns by name (e.g., row['title'])
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        # SQL Logic: Get the Title, Description, and calculate 'is_solved'
+        # If the user_progress row exists, 'is_solved' becomes TRUE.
+        query = """
+            SELECT q.id, q.title, q.description, q.difficulty, q.link,
+                   CASE WHEN up.question_id IS NOT NULL THEN TRUE ELSE FALSE END as is_solved
+            FROM questions q
+            LEFT JOIN user_progress up ON q.id = up.question_id AND up.user_id = %s
+            WHERE q.id = %s
+        """
+        cur.execute(query, (user_id, q_id))
+        data = cur.fetchone()
+        
+        if not data:
+            return jsonify({"error": "Question not found"}), 404
+            
+        return jsonify(data)
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        con.close()
+@app.route("/api/toggle_solve", methods=["POST"])
+def toggle_solve():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    q_id = data.get("question_id")
+    
+    con = getDBConnection()
+    cur = con.cursor()
+    
+    try:
+        # 1. Check if the user has already solved this specific question
+        cur.execute("SELECT 1 FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
+        exists = cur.fetchone()
+        
+        if exists:
+            # 2. Logic: If it exists, DELETE it (Reset Progress)
+            cur.execute("DELETE FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
+            action = "reset"
+        else:
+            # 3. Logic: If it doesn't exist, INSERT it (Mark as Done)
+            cur.execute("INSERT INTO user_progress (user_id, question_id) VALUES (%s, %s)", (user_id, q_id))
+            action = "solved"
+            
+        con.commit() # IMPORTANT: Save changes to the database
+        return jsonify({"status": "success", "action": action})
+        
+    except Exception as e:
+        con.rollback() # Undo changes if something crashes
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        con.close()
 if __name__ == "__main__":
     app.run(debug=True)
