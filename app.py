@@ -145,7 +145,6 @@ def get_question_details(q_id):
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
-
     con = getDBConnection()
     # Use RealDictCursor to access columns by name (e.g., row['title'])
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -162,10 +161,8 @@ def get_question_details(q_id):
         """
         cur.execute(query, (user_id, q_id))
         data = cur.fetchone()
-        
         if not data:
-            return jsonify({"error": "Question not found"}), 404
-            
+            return jsonify({"error": "Question not found"}), 404   
         return jsonify(data)
         
     except Exception as e:
