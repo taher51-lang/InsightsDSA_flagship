@@ -19,6 +19,7 @@ def getDBConnection():
         password=os.getenv("DB_PASS")
     )
     return con
+
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -78,9 +79,8 @@ def register():
 def dashboard():
     user_id = session.get('user_id')
     if not user_id:
-        return redirect(url_for('login'))
+        return redirect(url_for('/login'))
 
-    # Only fetch the basic Concept boxes here for Jinja to loop through
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM concepts") # Your scrollable boxes
@@ -98,11 +98,9 @@ def get_user_stats():
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Query 1: Total Solved
     cur.execute("SELECT COUNT(*) as solved_count FROM user_progress WHERE user_id = %s", (user_id,))
     total_solved = cur.fetchone()['solved_count']
     
-    # Query 2: Active Days
     cur.execute("SELECT COUNT(DISTINCT TO_CHAR(solved_at, 'YYYY-MM-DD')) as streak FROM user_progress WHERE user_id = %s", (user_id,))
     streak = cur.fetchone()['streak']
 
@@ -115,6 +113,7 @@ def get_user_stats():
         "total_solved": total_solved,
         "streak": streak
     })
+
 @app.route("/questions/<int:concept_id>")
 def questions_page(concept_id):
     # This just renders the blank page with the concept_id passed to the template
@@ -125,7 +124,6 @@ def get_questions_api(concept_id):
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Query: Get all questions for this concept AND check if THIS user solved them
     query = """
         SELECT q.id, q.title, q.difficulty, q.link,
                CASE WHEN up.question_id IS NOT NULL THEN TRUE ELSE FALSE END as is_solved
@@ -140,18 +138,17 @@ def get_questions_api(concept_id):
     cur.close()
     con.close()
     return jsonify(questions)
+
 @app.route("/api/get_question_details/<int:q_id>")
 def get_question_details(q_id):
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
     con = getDBConnection()
-    # Use RealDictCursor to access columns by name (e.g., row['title'])
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     try:
-        # SQL Logic: Get the Title, Description, and calculate 'is_solved'
-        # If the user_progress row exists, 'is_solved' becomes TRUE.
+    
         query = """
             SELECT q.id, q.title, q.description, q.difficulty, q.link,
                    CASE WHEN up.question_id IS NOT NULL THEN TRUE ELSE FALSE END as is_solved
@@ -170,6 +167,7 @@ def get_question_details(q_id):
     finally:
         cur.close()
         con.close()
+
 @app.route("/api/toggle_solve", methods=["POST"])
 def toggle_solve():
     user_id = session.get("user_id")
@@ -183,27 +181,25 @@ def toggle_solve():
     cur = con.cursor()
     
     try:
-        # 1. Check if the user has already solved this specific question
         cur.execute("SELECT 1 FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
         exists = cur.fetchone()
         
         if exists:
-            # 2. Logic: If it exists, DELETE it (Reset Progress)
             cur.execute("DELETE FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
             action = "reset"
         else:
-            # 3. Logic: If it doesn't exist, INSERT it (Mark as Done)
             cur.execute("INSERT INTO user_progress (user_id, question_id) VALUES (%s, %s)", (user_id, q_id))
             action = "solved"
             
-        con.commit() # IMPORTANT: Save changes to the database
+        con.commit() 
         return jsonify({"status": "success", "action": action})
         
     except Exception as e:
-        con.rollback() # Undo changes if something crashes
+        con.rollback() 
         return jsonify({"error": str(e)}), 500
     finally:
         cur.close()
         con.close()
+
 if __name__ == "__main__":
     app.run(debug=True)
