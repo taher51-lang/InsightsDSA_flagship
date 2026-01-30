@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify,session,redirect,url_for
+from aiBotBackend import chatbot;
 import psycopg2.extras
 import psycopg2
 from dotenv import load_dotenv
@@ -106,8 +107,8 @@ def get_user_stats():
 
     cur.close()
     con.close()
-    print(total_solved)
-    print(streak)
+    # print(total_solved)
+    # print(streak)
     print("hello")
     return jsonify({
         "total_solved": total_solved,
@@ -193,13 +194,23 @@ def toggle_solve():
             
         con.commit() 
         return jsonify({"status": "success", "action": action})
-        
     except Exception as e:
         con.rollback() 
         return jsonify({"error": str(e)}), 500
     finally:
         cur.close()
         con.close()
+@app.route("/api/ask_ai", methods=["POST"])
+def ask_AI():
+    data = request.get_json()
+    question_id = data.get("question_id")
+    query = data.get("query")
+    thread_id = 1
+    config = {"configurable": {"thread_id": thread_id}}
+    response = chatbot.invoke({'user_input': query,'question': question_id},config=config)
+    return jsonify({"answer": response['bot_response']})
+    # Placeholder response; integrate with AI service as needed
+    
 
 if __name__ == "__main__":
     app.run(debug=True)
