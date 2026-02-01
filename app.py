@@ -8,7 +8,7 @@ load_dotenv()
 app = Flask(__name__)
 @app.route("/")
 def LoginPage():
-    return render_template("login.html")
+    return render_template("regAndLogin.html")
 app.secret_key = os.getenv("FLASK_SECRET_KEY") # Use a strong key
 
 def getDBConnection():
@@ -23,6 +23,7 @@ def getDBConnection():
 
 @app.route("/login", methods=["POST"])
 def login():
+    print("HIIIII")
     data = request.get_json()
     username = data.get("username")
     userpass = data.get("userpass")
@@ -32,6 +33,9 @@ def login():
     # Good practice: explicitly select the columns you need instead of '*'
     cur.execute("SELECT id, username, name FROM users WHERE username = %s AND userpassword = %s", (username, userpass))
     result = cur.fetchone()
+    print(username)
+    print(userpass)
+    print(result)
     if result:
         # This now works perfectly because 'result' is a dictionary
         session['user_id'] = result['id'] 
@@ -40,10 +44,8 @@ def login():
         cur.close()
         con.close()
         print(result['name'])
-        # Added redirect URL so your JS knows where to send the user
         return jsonify({"message": "Login successful","name":result['name']}), 200
     else:
-        # Close connections here too
         cur.close()
         con.close()
         return jsonify({"message": "Invalid Credentials"}), 401
@@ -147,9 +149,7 @@ def get_question_details(q_id):
         return jsonify({"error": "Unauthorized"}), 401
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
     try:
-    
         query = """
             SELECT q.id, q.title, q.description, q.difficulty, q.link,
                    CASE WHEN up.question_id IS NOT NULL THEN TRUE ELSE FALSE END as is_solved
@@ -174,7 +174,6 @@ def toggle_solve():
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
-    
     data = request.get_json()
     q_id = data.get("question_id")
     
@@ -209,8 +208,6 @@ def ask_AI():
     config = {"configurable": {"thread_id": thread_id}}
     response = chatbot.invoke({'user_input': query,'question': question_id},config=config)
     return jsonify({"answer": response['bot_response']})
-    # Placeholder response; integrate with AI service as needed
-    
 
 if __name__ == "__main__":
     app.run(debug=True)

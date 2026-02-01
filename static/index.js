@@ -1,6 +1,9 @@
 const handleLogin = async() =>{
     const user_name = document.getElementById("user_name").value
     const user_pass = document.getElementById("user_pass").value
+    console.log(user_name)
+    console.log(user_pass)
+    
     const response = await fetch("/login",{
         method : "POST",
         headers : {"Content-Type":"application/JSON"},
@@ -12,18 +15,20 @@ const handleLogin = async() =>{
     data = await response.json()
     console.log(data)
      if (response.ok) {
-    loadOverlay()
+    // loadOverlay()
     
     sessionStorage.setItem("name",data['name'])
     setTimeout(() => {
         window.location.href = "/dashboard"; 
     }, 3000);
 } else {
-    document.getElementById("msg").innerText = data["message"];
-    document.getElementById("msg").style.color = "red";
+    // document.getElementById("msg").innerText = data["message"];
+    // document.getElementById("msg").style.color = "red";
 }
 }
 const btn = document.getElementById('loginbtn');
+console.log(btn)
+console.log(document.getElementById("user_name").value)
 // 2. Add the "Ear" (Listener)
 if (btn){
 btn.addEventListener('click', handleLogin);}
