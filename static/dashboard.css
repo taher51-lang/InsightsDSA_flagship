@@ -35,7 +35,7 @@ aside {
         margin: 0 !important;
     }
     .sidebar.navbar {
-        min-height: 60px !important; /* Minimum slim look */
+        min-height: 40px !important; /* Minimum slim look */
         height: auto !important;      /* Allows expansion */
         transition: all 0.3s ease;    /*Makes the drop-down smooth*/
     }

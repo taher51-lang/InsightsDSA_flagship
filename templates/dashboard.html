@@ -16,11 +16,12 @@
                 <nav class="sidebar navbar navbar-expand-lg navbar-dark bg-dark rounded-4 shadow-sm h-100">
                     <div class="container-fluid d-flex flex-lg-column p-2 h-100">
                         <div class="d-flex justify-content-between align-items-center w-100 mb-lg-4 px-2">
-                            <a class="navbar-brand fw-bold fs-3" href="#">H</a>
-                            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                            <a class="navbar-brand fw-bold fs-3" href="#"><img src="{{ url_for('static', filename='logo.png') }}" alt="AlgoMind Logo" style="height: 30px; border-radius: 5px;"></a>                            
+                                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse"
                                 data-bs-target="#navMenu">
                                 <span class="navbar-toggler-icon"></span>
                             </button>
+                            
                         </div>
                         <div class="collapse navbar-collapse w-100" id="navMenu">
                             <ul class="navbar-nav flex-column align-items-center w-100 gap-2">
@@ -57,9 +58,9 @@
                                 </div>
                                 <div class="fs-1">👋</div>
                             </div>
-                            <div class="row g-3 mb-1">
+                            <div class="row mb-1">
                                 <div class="col-md-12 rounded-4">
-                                    <div class="row mb-4">
+                                    <div class="row mb-4 d-flex">
                                         <div class="col-sm-6 rounded bg-light mb-2 ">
                                             <h2 class="mb-2" id="solved-count"></h2>
                                             <h6>Problems Solved</h6>
@@ -99,7 +100,7 @@
                             <div class="d-flex flex-column gap-3">
                                 <div class="card border-0 rounded-4  shadow-sm" style="background-color: #e9ecef;">
                                     <div class="card-body d-flex justify-content-between align-items-center p-3"
-                                        style="cursor: pointer;" onclick="location.href='/roadmap'">
+                                        style="cursor: pointer;" onclick="openRoadmap()">
                                         <div>
                                             <h6 class="mb-0 fw-bold">Ideal Roadmap</h6>
                                             <small class="opacity-75">View 6-month path</small>
@@ -107,10 +108,10 @@
                                         <span class="fs-4">→</span>
                                     </div>
                                 </div>
-                                <div class="card border-0 rounded-4 shadow-sm bg-white">
+                                <div class="card border-0 rounded-4 shadow-sm bg-white ">
                                     <div class="card-body p-3">
                                         <h6 class="fw-bold mb-3">Daily Progress</h6>
-                                        <div style="height: 180px;">
+                                        <div style="height: 220px;">
                                             <canvas id="progressChart"></canvas>
                                         </div>
                                     </div>
@@ -127,6 +128,20 @@
                                             <small class="text-muted">65% Retained</small>
                                             <small class="fw-bold">2 Days Left</small>
                                         </div>
+                                    </div>
+                                </div>
+                                 <div class="card border-0 rounded-4 shadow-sm bg-white">
+                                    <div class="card-body p-3" style="cursor: pointer;"
+                                        onclick="location.href='/revision'">
+                                        <h6 class="fw-bold mb-1">Resources</h6>
+                                        <p class="small text-muted mb-2">Suggested DSA Resources</p>
+                                        <!-- <div class="progress mb-2" style="height: 6px;">
+                                            <div class="progress-bar" style="width: 65%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <small class="text-muted">65% Retained</small>
+                                            <small class="fw-bold">2 Days Left</small>
+                                        </div> -->
                                     </div>
                                 </div>
                             </div>

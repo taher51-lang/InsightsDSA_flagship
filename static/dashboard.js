@@ -19,3 +19,6 @@ document.querySelectorAll('#data-concept-id').forEach(async ()=>{
 
     })
 })
+function openRoadmap(){
+    window.location.href="/roadmap"
+}

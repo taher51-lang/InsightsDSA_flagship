@@ -16,7 +16,7 @@ def ChatNode(state: chatState) -> chatState:
     model =  ChatGoogleGenerativeAI(model="gemini-2.5-flash")
     prompt = PromptTemplate(
         input_variables=["user_input","question"],
-        template="You are a helpful DSA academic assistant. Respond to the user's input and guide them through this question's solving appproach : {question}\nUser: {user_input}")
+        template="You are a helpful DSA academic assistant. Respond to the user's input and guide them through this question's solving appproach WITHOUT GIVING FULL CODE: {question}\nUser: {user_input}")
     chain = prompt| model | StrOutputParser()
     response = chain.invoke({'user_input': user_input,'question': question})
     return {'bot_response':response}

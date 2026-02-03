@@ -19,4 +19,4 @@ Database: PostgreSQL
 
 Frontend: HTML5, CSS3, JavaScript, Bootstrap 5
 
-AI Engine: Google Gemini Pro (via API)
+AI Engine: Google Gemini Pro (via API) 

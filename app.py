@@ -23,7 +23,6 @@ def getDBConnection():
 
 @app.route("/login", methods=["POST"])
 def login():
-    print("HIIIII")
     data = request.get_json()
     username = data.get("username")
     userpass = data.get("userpass")
@@ -61,7 +60,7 @@ def register():
     userpass = data.get("userpass")
     con = getDBConnection()
     cur = con.cursor()
-    print("Hello")
+    print("Hellothisisregistercheck")
     # FIX: Added the comma (username,) to make it a proper Tuple
     cur.execute("SELECT * FROM users WHERE userName = %s", (username,))
     result = cur.fetchone()
@@ -81,8 +80,9 @@ def register():
 @app.route("/dashboard")
 def dashboard():
     user_id = session.get('user_id')
+    print(user_id)
     if not user_id:
-        return redirect(url_for('/login'))
+        return redirect(url_for('login'))
 
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -111,7 +111,7 @@ def get_user_stats():
     con.close()
     # print(total_solved)
     # print(streak)
-    print("hello")
+    print(f"hellothisis userid{user_id}")
     return jsonify({
         "total_solved": total_solved,
         "streak": streak
@@ -202,12 +202,17 @@ def toggle_solve():
 @app.route("/api/ask_ai", methods=["POST"])
 def ask_AI():
     data = request.get_json()
+    con = getDBConnection()
+    query = "select description from questions where question_id = "
     question_id = data.get("question_id")
     query = data.get("query")
     thread_id = 1
     config = {"configurable": {"thread_id": thread_id}}
     response = chatbot.invoke({'user_input': query,'question': question_id},config=config)
     return jsonify({"answer": response['bot_response']})
-
+@app.route('/roadmap')
+def roadmap():
+    return render_template('roadmap.html')
 if __name__ == "__main__":
+    app.secret_key="THERRANGBHRUCH"
     app.run(debug=True)
