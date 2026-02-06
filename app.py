@@ -55,6 +55,7 @@ def register_page():
 
 @app.route("/register", methods=["POST"])
 def register():
+    
     data = request.get_json()
     username = data.get("username")
     userpass = data.get("userpass")
@@ -71,6 +72,10 @@ def register():
     else:
         query = "INSERT INTO users (username, userpassword) VALUES (%s, %s)"
         cur.execute(query, (username, userpass))
+        cur.execute("SELECT id FROM users WHERE username = %s AND userpassword = %s", (username, userpass))
+        result = cur.fetchone()
+        session['user_id'] = result[0] 
+        session['username'] = username 
         con.commit() 
         cur.close()
         con.close()
