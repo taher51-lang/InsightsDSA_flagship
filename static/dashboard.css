@@ -7,7 +7,6 @@ aside {
     aside {
         width: 110px; /* Precise width for your Desktop sidebar */
     }
-    
     .sidebar {
         position: sticky;
         top: 1rem;
@@ -81,4 +80,13 @@ main {
         width: 100px; /* Adjust this number to your liking */
         flex: 0 0 auto; /* Prevents it from growing to fill space */
     }
+}
+/* Custom class for the hover effect */
+.hover-white {
+    transition: color 0.3s ease; /* Makes the color change smooth */
+    cursor: pointer; /* Shows the little hand icon */
+}
+
+.hover-white:hover {
+    color: white !important; /* Forces the color to white on hover */
 }

@@ -1,11 +1,54 @@
 from flask import Flask, render_template, request, jsonify,session,redirect,url_for
 from aiBotBackend import chatbot;
+from datetime import date, timedelta 
 import psycopg2.extras
 import psycopg2
 from dotenv import load_dotenv
 import os
 load_dotenv()
 app = Flask(__name__)
+def sm2_algorithm(quality, current_interval, current_ease, repetitions):
+    """
+    Inputs:
+        quality: 0 (Forgot), 3 (Hard), 4 (Good), 5 (Easy)
+        current_interval: Days since last review
+        current_ease: Difficulty multiplier (default 2.5)
+        repetitions: How many times successfully reviewed in a row
+    
+    Returns:
+        (new_interval, new_ease, new_repetitions, next_review_date)
+    """
+    # 1. HANDLE "FORGOT" (Reset Logic)
+    if quality < 3:
+        new_reps = 0
+        new_interval = 1  # Reset to 1 day (Review tomorrow)
+        new_ease = current_ease # Keep ease factor same (or could decrease it)
+        
+    # 2. HANDLE SUCCESS (Growth Logic)
+    else:
+        new_reps = repetitions + 1
+        
+        # Standard SM-2 Intervals
+        if new_reps == 1:
+            new_interval = 1
+        elif new_reps == 2:
+            new_interval = 6
+        else:
+            # The Magic Formula: Previous Interval * Ease Factor
+            new_interval = int(current_interval * current_ease)
+
+        # Update Ease Factor (Math to adjust difficulty)
+        # If user found it hard, Ease Factor drops. If easy, it rises.
+        new_ease = current_ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+        
+        # Cap the Ease Factor (Don't let it get too low, or intervals will never grow)
+        if new_ease < 1.3:
+            new_ease = 1.3
+
+    # 3. CALCULATE DATE
+    next_review_date = date.today() + timedelta(days=new_interval)
+
+    return new_interval, new_ease, new_reps, next_review_date
 @app.route("/")
 def LoginPage():
     return render_template("regAndLogin.html")
@@ -32,9 +75,9 @@ def login():
     # Good practice: explicitly select the columns you need instead of '*'
     cur.execute("SELECT id, username, name FROM users WHERE username = %s AND userpassword = %s", (username, userpass))
     result = cur.fetchone()
-    print(username)
-    print(userpass)
-    print(result)
+    # print(username)
+    # print(userpass)
+    # print(result)
     if result:
         # This now works perfectly because 'result' is a dictionary
         session['user_id'] = result['id'] 
@@ -85,38 +128,144 @@ def register():
 @app.route("/dashboard")
 def dashboard():
     user_id = session.get('user_id')
-    print(user_id)
     if not user_id:
         return redirect(url_for('login'))
 
     con = getDBConnection()
+    # You are using RealDictCursor, so results are dicts {'col_name': value}
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM concepts") # Your scrollable boxes
+    
+    # 1. Fetch Concepts
+    cur.execute("SELECT * FROM concepts") 
     concepts = cur.fetchall()
+
+    # 2. Fetch Stats (Give aliases to your aggregates!)
+    cur.execute("""
+        SELECT 
+            AVG(ease_factor) as avg_ease, 
+            MIN(next_review) as next_date
+        FROM user_progress 
+        WHERE user_id = %s AND is_solved = TRUE
+    """, (user_id,))
+    
+    rev_stats = cur.fetchone()
+
+    # FIX: Access by Key Name, not Index [0]
+    if rev_stats and rev_stats['avg_ease']:
+        avg_ease = float(rev_stats['avg_ease'])
+        next_date = rev_stats['next_date']
+    else:
+        avg_ease = 2.5
+        next_date = None
+
+    # Logic remains the same...
+    retention_pct = int(min(100, (avg_ease / 3.0) * 100))
+
+    if next_date:
+        delta = (next_date - date.today()).days
+        if delta < 0:
+            days_label = "Overdue!"
+            days_color = "text-danger"
+        elif delta == 0:
+            days_label = "Due Today"
+            days_color = "text-warning"
+        else:
+            days_label = f"{delta} Days Left"
+            days_color = "text-success"
+    else:
+        days_label = "No Reviews"
+        days_color = "text-muted"
+    cur.execute("""
+        SELECT COUNT(*) as count 
+        FROM user_progress 
+        WHERE user_id = %s AND "interval" <= 3
+    """, (user_id,))
+    short_term = cur.fetchone()['count']
+
+    # --- 2. GET STARTING TO STICK (Medium Term) ---
+    # Logic: Interval is medium (4-14 days). You know these somewhat well.
+    cur.execute("""
+        SELECT COUNT(*) as count 
+        FROM user_progress 
+        WHERE user_id = %s AND "interval" > 3 AND "interval" <= 14
+    """, (user_id,))
+    medium_term = cur.fetchone()['count']
+
+    # --- 3. GET MASTERED (Long Term) ---
+    # Logic: Interval is large (> 14 days). These are solid.
+    cur.execute("""
+        SELECT COUNT(*) as count 
+        FROM user_progress 
+        WHERE user_id = %s AND "interval" > 14
+    """, (user_id,))
+    long_term = cur.fetchone()['count']
+
+    # Package the data for the chart [Short, Medium, Long]
+    chart_data = [short_term, medium_term, long_term]
     cur.close()
     con.close()
-
-    return render_template("dashboard.html", concepts=concepts)
+    print(f"DEBUG CHART DATA: {chart_data}")
+    
+    return render_template('dashboard.html', 
+                           retention_pct=retention_pct,
+                           days_label=days_label,
+                           days_color=days_color,
+                           concepts=concepts,
+                           chart_data = chart_data
+                           )
+    
 @app.route("/api/user_stats")
 def get_user_stats():
     user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
+    
     con = getDBConnection()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    cur.execute("SELECT COUNT(*) as solved_count FROM user_progress WHERE user_id = %s", (user_id,))
-    total_solved = cur.fetchone()['solved_count']
+    # 1. Get Total Solved (Your existing logic is fine here)
+    cur.execute("""
+        SELECT COUNT(*) as solved_count 
+        FROM user_progress 
+        WHERE user_id = %s AND is_solved = TRUE
+    """, (user_id,))
+    total_result = cur.fetchone()
+    total_solved = total_result['solved_count'] if total_result else 0
     
-    cur.execute("SELECT COUNT(DISTINCT TO_CHAR(solved_at, 'YYYY-MM-DD')) as streak FROM user_progress WHERE user_id = %s", (user_id,))
-    streak = cur.fetchone()['streak']
-
+    # 2. Get Streak (THE FIX)
+    # Fetch all unique dates the user was active, ordered by newest first
+    cur.execute("""
+        SELECT DISTINCT DATE(solved_at) as activity_date
+        FROM user_progress
+        WHERE user_id = %s AND solved_at IS NOT NULL
+        ORDER BY activity_date DESC
+    """, (user_id,))
+    
+    # Convert list of dicts to a Set of date objects for easy lookup
+    rows = cur.fetchall()
+    active_dates = {row['activity_date'] for row in rows}
+    
     cur.close()
     con.close()
-    # print(total_solved)
-    # print(streak)
-    print(f"hellothisis userid{user_id}")
+
+    # --- PYTHON STREAK ALGORITHM ---
+    streak = 0
+    today = date.today()
+    
+    # Check if the streak is alive (Active Today OR Yesterday)
+    if today in active_dates:
+        streak = 1
+        check_date = today - timedelta(days=1) # Start checking from Yesterday
+    elif (today - timedelta(days=1)) in active_dates:
+        streak = 1
+        check_date = today - timedelta(days=2) # Start checking from Day Before Yesterday
+    else:
+        streak = 0 # Streak is broken
+        check_date = None
+
+    # Count backwards as long as there is no gap
+    while check_date and check_date in active_dates:
+        streak += 1
+        check_date -= timedelta(days=1)
+
     return jsonify({
         "total_solved": total_solved,
         "streak": streak
@@ -179,6 +328,7 @@ def toggle_solve():
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
+        
     data = request.get_json()
     q_id = data.get("question_id")
     
@@ -186,21 +336,36 @@ def toggle_solve():
     cur = con.cursor()
     
     try:
+        # 1. Check if it exists
         cur.execute("SELECT 1 FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
         exists = cur.fetchone()
         
         if exists:
+            # OPTION A: Reset (Delete row)
             cur.execute("DELETE FROM user_progress WHERE user_id = %s AND question_id = %s", (user_id, q_id))
             action = "reset"
+            
         else:
-            cur.execute("INSERT INTO user_progress (user_id, question_id) VALUES (%s, %s)", (user_id, q_id))
+            # OPTION B: First Solve (Initialize SRS Defaults)
+            tomorrow = date.today() + timedelta(days=1)
+            
+            # Note the double quotes around "interval" for Postgres!
+            query = """
+                INSERT INTO user_progress 
+                (user_id, question_id, solved_at, "interval", ease_factor, repetitions, next_review, is_solved) 
+                VALUES (%s, %s, NOW(), 1, 2.5, 0, %s, TRUE)
+            """
+            cur.execute(query, (user_id, q_id, tomorrow))
             action = "solved"
             
         con.commit() 
         return jsonify({"status": "success", "action": action})
+        
     except Exception as e:
         con.rollback() 
+        print(f"Error: {e}") # Good for debugging
         return jsonify({"error": str(e)}), 500
+        
     finally:
         cur.close()
         con.close()
@@ -215,6 +380,156 @@ def ask_AI():
     config = {"configurable": {"thread_id": thread_id}}
     response = chatbot.invoke({'user_input': query,'question': question_id},config=config)
     return jsonify({"answer": response['bot_response']})
+
+@app.route('/memory')
+def memory():
+    user_id = session.get('user_id')
+    
+    con = getDBConnection()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    try:
+        # --- QUERY 1: FETCH REVIEW QUEUE ---
+        # Changed c.name -> c.title
+        cur.execute("""
+            SELECT 
+                q.id as question_id, 
+                q.title as question_title, 
+                q.link as question_link, 
+                c.title as concept_title,   -- <--- FIXED: using c.title
+                up."interval" as days_interval
+            FROM questions q
+            JOIN user_progress up ON q.id = up.question_id
+            JOIN concepts c ON q.concept_id = c.id
+            WHERE up.user_id = %s AND up.next_review <= CURRENT_DATE
+            ORDER BY up.next_review ASC
+        """, (user_id,))
+        
+        review_queue = cur.fetchall()
+        
+        # --- QUERY 2: FETCH STATS ---
+        # Changed c.name -> c.title here too
+        cur.execute("""
+            SELECT 
+                c.title as concept_title,   -- <--- FIXED
+                COUNT(up.question_id) as solved_count, 
+                COALESCE(AVG(up.ease_factor), 0) as avg_ease
+            FROM concepts c
+            LEFT JOIN questions q ON c.id = q.concept_id
+            LEFT JOIN user_progress up ON q.id = up.question_id AND up.user_id = %s
+            GROUP BY c.id, c.title          -- <--- FIXED: Group by title
+        """, (user_id,))
+        
+        stats_raw = cur.fetchall()
+        stats = []
+
+        # Process Stats
+        for row in stats_raw:
+            name = row['concept_title'] 
+            solved = row['solved_count']
+            ease = float(row['avg_ease'])
+            
+            if solved == 0: signal = 0
+            elif ease >= 2.6: signal = 4
+            elif ease >= 2.1: signal = 3
+            elif ease >= 1.5: signal = 2
+            else: signal = 1
+            
+            stats.append({"name": name, "solved": solved, "signal": signal})
+
+        return render_template('retention.html', queue=review_queue, stats=stats)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Database Error", 500
+    finally:
+        cur.close()
+        con.close()
+
+@app.route('/api/review', methods=['POST'])
+def api_review():
+    # 1. Security Check
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # 2. Get Data from Frontend
+    question_id = request.form.get('question_id')
+    quality = int(request.form.get('quality')) # 0, 3, 4, 5
+
+    con = getDBConnection()
+    cur = con.cursor()
+
+    try:
+        # 3. Fetch Current Stats
+        # We need the OLD values to calculate the NEW ones
+        cur.execute("""
+            SELECT "interval", ease_factor, repetitions 
+            FROM user_progress 
+            WHERE user_id = %s AND question_id = %s
+        """, (user_id, question_id))
+        
+        record = cur.fetchone()
+        
+        # Defaults (Safety net if row exists but values are null)
+        curr_ivl = record[0] if record and record[0] else 1
+        curr_ease = record[1] if record and record[1] else 2.5
+        curr_reps = record[2] if record and record[2] else 0
+
+        # 4. Run the Algorithm
+        new_ivl, new_ease, new_reps, new_date = sm2_algorithm(quality, curr_ivl, curr_ease, curr_reps)
+
+        # 5. Update Database
+        # Note: We update "solved_at" to NOW() because they just reviewed it.
+        cur.execute("""
+            UPDATE user_progress 
+            SET 
+                "interval" = %s,
+                ease_factor = %s,
+                repetitions = %s,
+                next_review = %s,
+                solved_at = NOW()
+            WHERE user_id = %s AND question_id = %s
+        """, (new_ivl, new_ease, new_reps, new_date, user_id, question_id))
+        
+        con.commit()
+        return jsonify({"status": "success", "new_date": str(new_date)})
+
+    except Exception as e:
+        con.rollback()
+        print("Error in SRS update:", e)
+        return jsonify({"error": str(e)}), 500
+        
+    finally:
+        cur.close()
+        con.close()
+
+@app.route('/api/roadmap-data')
+def roadmap_data():
+    user_id = session.get('user_id')
+    con = getDBConnection()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # --- FETCH CONCEPTS & PROGRESS ---
+    cur.execute("""
+        SELECT 
+            c.id, 
+            c.title, 
+            COUNT(up.question_id) as solved_count
+        FROM concepts c
+        LEFT JOIN questions q ON c.id = q.concept_id
+        LEFT JOIN user_progress up ON q.id = up.question_id 
+             AND up.user_id = %s AND up.is_solved = TRUE
+        GROUP BY c.id, c.title
+        ORDER BY c.id ASC
+    """, (user_id,))
+    
+    concepts = cur.fetchall()
+    cur.close()
+    con.close()
+    
+    # Return raw JSON data
+    return jsonify(concepts)
 @app.route('/roadmap')
 def roadmap():
     return render_template('roadmap.html')

@@ -23,18 +23,17 @@
         /* --- THE NODE CARD --- */
         .node-card {
             background: white;
-            border-radius: 24px; /* Modern 'Squircle' look */
+            border-radius: 24px;
             padding: 25px 15px;
             text-align: center;
             border: 2px solid #eaecf0;
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            height: 100%; /* Ensures all cards in a row match height */
+            height: 100%;
             cursor: pointer;
             position: relative;
             overflow: hidden;
         }
 
-        /* Hover Effect: Lifts up slightly with shadow */
         .node-card:hover {
             transform: translateY(-8px);
             box-shadow: 0 12px 24px rgba(0,0,0,0.08);
@@ -53,11 +52,10 @@
             justify-content: center;
             font-weight: 800;
             font-size: 1.2rem;
-            margin: 0 auto 15px auto; /* Center horizontally + bottom spacing */
+            margin: 0 auto 15px auto;
             transition: all 0.3s ease;
         }
 
-        /* --- THE TEXT --- */
         .node-title {
             font-weight: 700;
             color: #344054;
@@ -69,7 +67,7 @@
         /* --- COMPLETED STATE (Red) --- */
         .node-card.done {
             border-color: var(--primary-color);
-            background: #fff5f5; /* Very faint red tint bg */
+            background: #fff5f5;
         }
 
         .node-card.done .node-number {
@@ -82,12 +80,9 @@
             color: var(--primary-color);
         }
 
-        /* --- GRID SPACING --- */
-        /* Adds space between the rows */
         .roadmap-row {
             margin-bottom: 3rem;
         }
-
     </style>
 </head>
 <body>
@@ -99,108 +94,85 @@
             <span class="text-white-50 small">Mastery Roadmap</span>
         </div>
     </nav>
-    <div class="container " style="max-width: 900px;">
+
+    <div class="container" style="max-width: 900px;">
         <a href="/dashboard" class="text-decoration-none text-muted small mb-2 d-block">
-                        <i class="bi bi-chevron-left"></i> Back to Dashboard
-                    </a>
+            <i class="bi bi-chevron-left"></i> Back to Dashboard
+        </a>
+        
         <div class="text-center mb-5">
             <h1 class="fw-bold display-6">Your Journey</h1>
             <p class="text-muted">6 Months. 12 Steps. Zero Excuses.</p>
         </div>
 
-        <div class="row roadmap-row g-4 justify-content-center">
-            
-            <div class="col-6 col-md-3">
-                <div class="node-card done">
-                    <div class="node-number">1</div>
-                    <h5 class="node-title">Arrays &<br>Hashing</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card done">
-                    <div class="node-number">2</div>
-                    <h5 class="node-title">Two<br>Pointers</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card done">
-                    <div class="node-number">3</div>
-                    <h5 class="node-title">Stack</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">4</div>
-                    <h5 class="node-title">Sliding<br>Window</h5>
-                </div>
-            </div>
-
-        </div> 
-        <div class="row roadmap-row g-4 flex-row-reverse justify-content-center">
-            
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">5</div>
-                    <h5 class="node-title">Binary<br>Search</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">6</div>
-                    <h5 class="node-title">Linked<br>List</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">7</div>
-                    <h5 class="node-title">Trees</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">8</div>
-                    <h5 class="node-title">Backtracking</h5>
-                </div>
-            </div>
-
-        </div>
-        <div class="row roadmap-row g-4 justify-content-center">
-            
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">9</div>
-                    <h5 class="node-title">Tries</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">10</div>
-                    <h5 class="node-title">Heaps</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">11</div>
-                    <h5 class="node-title">Graphs</h5>
-                </div>
-            </div>
-
-            <div class="col-6 col-md-3">
-                <div class="node-card">
-                    <div class="node-number">12</div>
-                    <h5 class="node-title">1D<br>DP</h5>
+        <div id="roadmap-container">
+            <div class="text-center py-5">
+                <div class="spinner-border text-danger" role="status">
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
         </div>
-        </div>
+
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/roadmap-data')
+                .then(response => response.json())
+                .then(data => renderRoadmap(data))
+                .catch(error => console.error('Error fetching roadmap:', error));
+        });
+
+        function renderRoadmap(concepts) {
+            const container = document.getElementById('roadmap-container');
+            container.innerHTML = ''; // Clear loading spinner
+
+            // Helper to chunk array into groups of 4
+            const chunkSize = 4;
+            for (let i = 0; i < concepts.length; i += chunkSize) {
+                const chunk = concepts.slice(i, i + chunkSize);
+                const rowIndex = i / chunkSize;
+                
+                // Create Row Div
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row roadmap-row g-4 justify-content-center';
+                
+                // Zig-Zag Logic: If row index is ODD (1, 3, 5...), reverse it
+                if (rowIndex % 2 !== 0) {
+                    rowDiv.classList.add('flex-row-reverse');
+                }
+
+                // Create Columns for this row
+                chunk.forEach((concept, index) => {
+                    const colDiv = document.createElement('div');
+                    colDiv.className = 'col-6 col-md-3';
+
+                    // Determine Status
+                    const isDone = concept.solved_count > 0;
+                    const statusClass = isDone ? 'done' : '';
+                    const solvedText = isDone ? 
+                        `<small class="d-block mt-2 text-danger fw-bold" style="font-size: 0.75rem;">${concept.solved_count} Solved</small>` : '';
+
+                    // Build Card HTML
+                    // Note: Global Number = i + index + 1
+                    const stepNumber = i + index + 1;
+
+                    colDiv.innerHTML = `
+                        <div class="node-card ${statusClass}">
+                            <div class="node-number">${stepNumber}</div>
+                            <h5 class="node-title">${concept.title}</h5>
+                            ${solvedText}
+                        </div>
+                    `;
+                    
+                    rowDiv.appendChild(colDiv);
+                });
+
+                container.appendChild(rowDiv);
+            }
+        }
+    </script>
 </body>
 </html>
