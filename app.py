@@ -50,6 +50,9 @@ def sm2_algorithm(quality, current_interval, current_ease, repetitions):
 
     return new_interval, new_ease, new_reps, next_review_date
 @app.route("/")
+def homePage():
+    return render_template("landing.html")
+@app.route("/loginpage")
 def LoginPage():
     return render_template("regAndLogin.html")
 app.secret_key = os.getenv("FLASK_SECRET_KEY") # Use a strong key

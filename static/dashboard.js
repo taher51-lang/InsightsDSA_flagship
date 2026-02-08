@@ -30,6 +30,3 @@ document.addEventListener("DOMContentLoaded", () => {
 function openRoadmap(){
     window.location.href = "/roadmap";
 }
-function changeText(text){
-    text.style.color="white"
-}
