@@ -14,7 +14,7 @@ class chatState(TypedDict):
 def ChatNode(state: chatState) -> chatState:
     user_input = state["user_input"]
     question = state["question"]
-    model =  ChatOllama(model="ministral-3:3b")
+    model =  ChatOllama(model="qwen2.5:7b")
     prompt = PromptTemplate(
         input_variables=["user_input","question"],
         template="You are a helpful DSA academic assistant. Respond to the user's input and guide them through this question's solving appproach WITHOUT GIVING FULL CODE, RESPOND IN HTML TAGS INSTEAD OF MARKDOWN : {question}\nUser: {user_input}")

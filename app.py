@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, jsonify,session,redirect,url_for
+from flask import Flask, render_template, request, jsonify,session,redirect,url_for,flash
 from aiBotBackend import chatbot;
 from datetime import date, timedelta 
 import psycopg2.extras
 import psycopg2
+import re
+from psycopg2 import errors
 from dotenv import load_dotenv
 import os
 load_dotenv()
@@ -105,27 +107,35 @@ def register():
     data = request.get_json()
     username = data.get("username")
     userpass = data.get("userpass")
-    con = getDBConnection()
-    cur = con.cursor()
-    print("Hellothisisregistercheck")
+    useremail = data.get("email")
+    name = data.get("name")
+    try:
+        con = getDBConnection()
+        cur = con.cursor()
+        
+        # Try to insert the user
+        cur.execute('''
+            INSERT INTO users (name, username, email, userpassword)
+            VALUES (%s, %s, %s, %s)
+        ''', (name, username, useremail, userpass))
+        
+        con.commit()
+        return jsonify({"message": "Registration Successful!"}), 201
+
+    except errors.UniqueViolation:
+        # This catches BOTH duplicate Email and duplicate Username
+        con.rollback() # Cancel the failed transaction
+        return jsonify({"error": "Username or Email already exists!"}), 409 
+
+    except Exception as e:
+        con.rollback()
+        print("Database Error:", e)
+        return jsonify({"error": "Server error. Please try again."}), 500
+        
+    finally:
+        if con: con.close()
     # FIX: Added the comma (username,) to make it a proper Tuple
-    cur.execute("SELECT * FROM users WHERE userName = %s", (username,))
-    result = cur.fetchone()
-    if result:
-        cur.close()
-        con.close()
-        return jsonify({"message": "User already exists. Select different username"}), 409
-    else:
-        query = "INSERT INTO users (username, userpassword) VALUES (%s, %s)"
-        cur.execute(query, (username, userpass))
-        cur.execute("SELECT id FROM users WHERE username = %s AND userpassword = %s", (username, userpass))
-        result = cur.fetchone()
-        session['user_id'] = result[0] 
-        session['username'] = username 
-        con.commit() 
-        cur.close()
-        con.close()
-        return jsonify({"message": "User registered successfully!"}), 201
+    
     
 
 @app.route("/dashboard")
@@ -376,12 +386,17 @@ def toggle_solve():
 def ask_AI():
     data = request.get_json()
     con = getDBConnection()
-    query = "select description from questions where question_id = "
+    cur = con.cursor()
+
     question_id = data.get("question_id")
     query = data.get("query")
+    query_db = "select description from questions where id = %s "
+    cur.execute(query_db,(question_id,))
+    question_description = cur.fetchone()
     thread_id = 1
     config = {"configurable": {"thread_id": thread_id}}
-    response = chatbot.invoke({'user_input': query,'question': question_id},config=config)
+    response = chatbot.invoke({'user_input': query,'question': question_description},config=config)
+    print(response['bot_response'])
     return jsonify({"answer": response['bot_response']})
 
 @app.route('/memory')
@@ -536,6 +551,9 @@ def roadmap_data():
 @app.route('/roadmap')
 def roadmap():
     return render_template('roadmap.html')
+@app.route('/resource')
+def resource():
+    return render_template('resource.html')
 if __name__ == "__main__":
     app.secret_key="THERRANGBHRUCH"
     app.run(debug=True)

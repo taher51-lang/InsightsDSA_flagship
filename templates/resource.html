@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insights DSA | Resource Hub</title>
+    <style>
+        :root {
+            --bg-white: #ffffff;
+            --dark-grey: #1a1a1a; /* Blackish Grey */
+            --medium-grey: #333333;
+            --light-border: #e0e0e0;
+            --hover-grey: #f5f5f5;
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            background-color: var(--bg-white); 
+            color: var(--dark-grey); 
+            margin: 0; 
+            padding: 40px 20px; 
+        }
+
+        .hub-container { max-width: 1000px; margin: 0 auto; }
+
+        .hub-header { border-bottom: 2px solid var(--dark-grey); padding-bottom: 20px; margin-bottom: 40px; }
+        .hub-header h1 { font-size: 2rem; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
+        .hub-header p { color: var(--medium-grey); margin-top: 5px; }
+
+        /* Controls Section */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 20px;
+        }
+
+        #searchInput {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid var(--dark-grey);
+            background: var(--bg-white);
+            color: var(--dark-grey);
+            font-size: 14px;
+        }
+
+        .type-chips { display: flex; gap: 5px; }
+        .chip {
+            padding: 8px 16px;
+            border: 1px solid var(--dark-grey);
+            background: var(--bg-white);
+            color: var(--dark-grey);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .chip.active, .chip:hover {
+            background: var(--dark-grey);
+            color: var(--bg-white);
+        }
+
+        /* Grid Layout */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .res-card {
+            border: 1px solid var(--light-border);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .res-card:hover {
+            border-color: var(--dark-grey);
+            background-color: var(--hover-grey);
+        }
+
+        .tag {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: inline-block;
+            border: 1px solid var(--dark-grey);
+            padding: 2px 6px;
+        }
+
+        .res-card h3 { margin: 10px 0; font-size: 1.2rem; }
+        .res-card p { font-size: 14px; line-height: 1.6; color: var(--medium-grey); flex-grow: 1; }
+
+        .btn-link {
+            margin-top: 20px;
+            text-decoration: none;
+            color: var(--bg-white);
+            background: var(--dark-grey);
+            text-align: center;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-link:hover {
+            background: var(--medium-grey);
+        }
+    </style>
+</head>
+<body>
+
+<div class="hub-container">
+    <header class="hub-header">
+        <h1>Insights DSA Resources</h1>
+        <p>Curated learning resources in monochrome style.</p>
+    </header>
+
+    <div class="controls">
+        <input type="text" id="searchInput" placeholder="SEARCH TOPICS OR RESOURCES..." onkeyup="renderResources()">
+        <div class="type-chips">
+            <button class="chip active" onclick="filterByType('all', this)">All</button>
+            <button class="chip" onclick="filterByType('video', this)">Videos</button>
+            <button class="chip" onclick="filterByType('notes', this)">Notes</button>
+            <button class="chip" onclick="filterByType('visual', this)">Visuals</button>
+        </div>
+    </div>
+
+    <div id="resourceGrid" class="resource-grid"></div>
+</div>
+
+<script>
+    let currentType = 'all';
+
+    const dsaData = [
+        { 
+            title: "Striver's A2Z Roadmap", 
+            type: "video", 
+            topic: "Full DSA", 
+            desc: "The definitive video series for mastering algorithms from beginner to interview-ready.", 
+            link: "https://www.youtube.com/playlist?list=PLgUwDviBIf0p-INQC6rMuzsSmdZ77EcrH" 
+        },
+        { 
+            title: "VisuAlgo Visualizer", 
+            type: "visual", 
+            topic: "Concepts", 
+            desc: "Interactive animations of data structures. Use this to see how nodes move in real-time.", 
+            link: "https://visualgo.net/en" 
+        },
+        { 
+            title: "Supreme DSA Notes", 
+            type: "notes", 
+            topic: "Handwritten", 
+            desc: "Detailed Google Drive/GitHub notes covering core concepts with diagrams and code.", 
+            link: "https://github.com/Ujjwal2327/DSA-SUPREME" 
+        },
+        { 
+            title: "Algorithm Visualizer", 
+            type: "visual", 
+            topic: "Code-Sync", 
+            desc: "An open-source project that visualizes algorithms as they execute line-by-line.", 
+            link: "https://algorithm-visualizer.org/" 
+        },
+        { 
+            title: "Apna College Notes", 
+            type: "notes", 
+            topic: "Revision", 
+            desc: "Summarized PDF notes for quick revision before coding rounds or interviews.", 
+            link: "https://www.apnacollege.in/notes" 
+        },
+        { 
+            title: "Take U Forward - DP", 
+            type: "video", 
+            topic: "Dynamic Prog", 
+            desc: "A specialized deep dive into DP problems, from memoization to tabular solutions.", 
+            link: "https://www.youtube.com/watch?v=tyB0ztf0DNY&list=PLgUwDviBIf0qUlt5H_kiKYaNSqJge11yG" 
+        }
+    ];
+
+    function filterByType(type, btn) {
+        currentType = type;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        renderResources();
+    }
+
+    function renderResources() {
+        const grid = document.getElementById('resourceGrid');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        grid.innerHTML = '';
+
+        const filtered = dsaData.filter(item => {
+            const matchesType = currentType === 'all' || item.type === currentType;
+            const matchesSearch = item.title.toLowerCase().includes(searchTerm) || 
+                                 item.topic.toLowerCase().includes(searchTerm);
+            return matchesType && matchesSearch;
+        });
+
+        filtered.forEach(res => {
+            grid.innerHTML += `
+                <div class="res-card">
+                    <span class="tag">${res.type}</span>
+                    <span style="font-size: 11px; color: #888; font-weight:bold;">// ${res.topic}</span>
+                    <h3>${res.title}</h3>
+                    <p>${res.desc}</p>
+                    <a href="${res.link}" target="_blank" class="btn-link">View Resource</a>
+                </div>
+            `;
+        });
+    }
+
+    renderResources();
+</script>
+
+</body>
+</html>
