@@ -83,9 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Regex Patterns
     const nameRegex = /[a-zA-Z0-9\s]{3,}/; // At least 3 letters,
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-    // --- 1. NAME VALIDATION ---
+const passRegex = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;    // --- 1. NAME VALIDATION ---
     nameInput.addEventListener('input', () => {
         const err = document.getElementById('name-error');
         if (nameRegex.test(nameInput.value.trim())) {
@@ -118,15 +116,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const err = document.getElementById('pass-error');
         let strength = 0;
 
-        if (val.length > 5) strength++; // Good length
+        if (val.length > 6) strength++; // Good length
         if (val.match(/[A-Z]/)) strength++; // Has Uppercase
         if (val.match(/[0-9]/)) strength++; // Has Number
-        if (val.match(/[@$!%*?&]/)) strength++; // Has Special Char
+        // if (val.match(/[@$!%*?&]/)) strength++; // Has Special Char
 
         // Update Bar Color
-        if (strength <= 1) { bar.style.width = '25%'; bar.className = 'progress-bar bg-danger'; }
-        else if (strength === 2) { bar.style.width = '50%'; bar.className = 'progress-bar bg-warning'; }
-        else if (strength === 3) { bar.style.width = '75%'; bar.className = 'progress-bar bg-info'; }
+        if (strength <= 1) { bar.style.width = '33%'; bar.className = 'progress-bar bg-danger'; }
+        else if (strength === 2) { bar.style.width = '66%'; bar.className = 'progress-bar bg-warning'; }
+        // else if (strength === 3) { bar.style.width = '75%'; bar.className = 'progress-bar bg-info'; }
         else { bar.style.width = '100%'; bar.className = 'progress-bar bg-success'; }
 
         // Validate Regex for Final Submission

@@ -3,7 +3,6 @@ from aiBotBackend import chatbot;
 from datetime import date, timedelta 
 import psycopg2.extras
 import psycopg2
-import re
 from psycopg2 import errors
 from dotenv import load_dotenv
 import os
@@ -109,18 +108,30 @@ def register():
     userpass = data.get("userpass")
     useremail = data.get("email")
     name = data.get("name")
+
     try:
         con = getDBConnection()
-        cur = con.cursor()
-        
-        # Try to insert the user
+    # 1. Use RealDictCursor so you get a Dictionary {'id': 1}, not a Tuple (1,)
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # 2. Add 'RETURNING' to get the ID back instantly
         cur.execute('''
-            INSERT INTO users (name, username, email, userpassword)
-            VALUES (%s, %s, %s, %s)
+        INSERT INTO users (name, username, email, userpassword)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id, username; 
         ''', (name, username, useremail, userpass))
-        
-        con.commit()
-        return jsonify({"message": "Registration Successful!"}), 201
+    
+    # 3. Fetch the data BEFORE committing
+        new_user = cur.fetchone() 
+    
+    # 4. SAVE the changes (Crucial!)
+        con.commit() 
+
+        if new_user:
+        # Now this works because RealDictCursor made it a dictionary
+            session['user_id'] = new_user['id']
+            session['username'] = new_user['username']
+            return jsonify({"message": "Registration Successful!"}), 201
 
     except errors.UniqueViolation:
         # This catches BOTH duplicate Email and duplicate Username
@@ -145,86 +156,86 @@ def dashboard():
         return redirect(url_for('login'))
 
     con = getDBConnection()
-    # You are using RealDictCursor, so results are dicts {'col_name': value}
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # 1. Fetch Concepts
     cur.execute("SELECT * FROM concepts") 
     concepts = cur.fetchall()
 
-    # 2. Fetch Stats (Give aliases to your aggregates!)
+    # --- FETCH COUNTS FIRST (To check if user is new) ---
     cur.execute("""
         SELECT 
-            AVG(ease_factor) as avg_ease, 
-            MIN(next_review) as next_date
+            COUNT(*) FILTER (WHERE "interval" <= 3) as short,
+            COUNT(*) FILTER (WHERE "interval" > 3 AND "interval" <= 14) as medium,
+            COUNT(*) FILTER (WHERE "interval" > 14) as long
         FROM user_progress 
-        WHERE user_id = %s AND is_solved = TRUE
+        WHERE user_id = %s
     """, (user_id,))
     
-    rev_stats = cur.fetchone()
-
-    # FIX: Access by Key Name, not Index [0]
-    if rev_stats and rev_stats['avg_ease']:
-        avg_ease = float(rev_stats['avg_ease'])
-        next_date = rev_stats['next_date']
-    else:
-        avg_ease = 2.5
-        next_date = None
-
-    # Logic remains the same...
-    retention_pct = int(min(100, (avg_ease / 3.0) * 100))
-
-    if next_date:
-        delta = (next_date - date.today()).days
-        if delta < 0:
-            days_label = "Overdue!"
-            days_color = "text-danger"
-        elif delta == 0:
-            days_label = "Due Today"
-            days_color = "text-warning"
-        else:
-            days_label = f"{delta} Days Left"
-            days_color = "text-success"
-    else:
-        days_label = "No Reviews"
-        days_color = "text-muted"
-    cur.execute("""
-        SELECT COUNT(*) as count 
-        FROM user_progress 
-        WHERE user_id = %s AND "interval" <= 3
-    """, (user_id,))
-    short_term = cur.fetchone()['count']
-
-    # --- 2. GET STARTING TO STICK (Medium Term) ---
-    # Logic: Interval is medium (4-14 days). You know these somewhat well.
-    cur.execute("""
-        SELECT COUNT(*) as count 
-        FROM user_progress 
-        WHERE user_id = %s AND "interval" > 3 AND "interval" <= 14
-    """, (user_id,))
-    medium_term = cur.fetchone()['count']
-
-    # --- 3. GET MASTERED (Long Term) ---
-    # Logic: Interval is large (> 14 days). These are solid.
-    cur.execute("""
-        SELECT COUNT(*) as count 
-        FROM user_progress 
-        WHERE user_id = %s AND "interval" > 14
-    """, (user_id,))
-    long_term = cur.fetchone()['count']
-
-    # Package the data for the chart [Short, Medium, Long]
+    counts = cur.fetchone()
+    short_term = counts['short']
+    medium_term = counts['medium']
+    long_term = counts['long']
+    
+    # Calculate Total Solved
+    total_solved = short_term + medium_term + long_term
     chart_data = [short_term, medium_term, long_term]
+
+    # --- 2. RETENTION LOGIC ---
+    if total_solved == 0:
+        # NEWBIE STATE: Force retention to 0 if no data
+        retention_pct = 0
+        days_label = "Start Now"
+        days_color = "text-primary"
+    else:
+        # EXPERT STATE: Calculate real stats
+        cur.execute("""
+            SELECT 
+                AVG(ease_factor) as avg_ease, 
+                MIN(next_review) as next_date
+            FROM user_progress 
+            WHERE user_id = %s AND is_solved = TRUE
+        """, (user_id,))
+        rev_stats = cur.fetchone()
+
+        if rev_stats and rev_stats['avg_ease']:
+            avg_ease = float(rev_stats['avg_ease'])
+            next_date = rev_stats['next_date']
+        else:
+            avg_ease = 2.5
+            next_date = None
+            
+        # Calculate Percentage
+        retention_pct = int(min(100, (avg_ease / 3.0) * 100))
+
+        # Calculate Days Label
+        if next_date:
+            delta = (next_date - date.today()).days
+            if delta < 0:
+                days_label = "Overdue!"
+                days_color = "text-danger"
+            elif delta == 0:
+                days_label = "Due Today"
+                days_color = "text-warning"
+            else:
+                days_label = f"{delta} Days Left"
+                days_color = "text-success"
+        else:
+            days_label = "No Reviews"
+            days_color = "text-muted"
+
     cur.close()
     con.close()
-    print(f"DEBUG CHART DATA: {chart_data}")
+    
+    print(f"DEBUG: Total Solved: {total_solved}, Retention: {retention_pct}%")
     
     return render_template('dashboard.html', 
                            retention_pct=retention_pct,
                            days_label=days_label,
                            days_color=days_color,
                            concepts=concepts,
-                           chart_data = chart_data
+                           chart_data=chart_data,
+                           total_solved=total_solved  # <--- CRITICAL: Passing this to Jinja!
                            )
     
 @app.route("/api/user_stats")
